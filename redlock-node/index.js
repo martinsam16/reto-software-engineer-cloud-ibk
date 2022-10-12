@@ -1,14 +1,19 @@
 const redis = require('redis')
 const Redlock = require('redlock')
-const { promisify } = require('util')
 const dotenv = require('dotenv');
+const { promisify } = require('util')
 dotenv.config();
 var Kafka = require("node-rdkafka");
+
+const express = require('express')
+const app = express()
+app.use(express.json())
 
 // Create and configure a Redis client.
 const redisClient = redis.createClient('6379', process.env.REDIS_SERVER_IP)
 redisClient.on('error', error => console.error(error))
 const redisSet = promisify(redisClient.set).bind(redisClient)
+const redisGet = promisify(redisClient.get).bind(redisClient)
 
 const redlock = new Redlock(
     [redisClient],
@@ -38,7 +43,7 @@ var kafkaConf = {
 };
 
 const prefix = process.env.CLOUDKARAFKA_USERNAME;
-const topics = [`${prefix}-ibk`];
+const topics = [`${prefix}-cache`];
 const consumer = new Kafka.KafkaConsumer(kafkaConf, {
     "auto.offset.reset": "beginning"
 });
@@ -55,21 +60,26 @@ consumer
     })
     .on("data", function (data) {
         consumer.commit(data);
-        const received = data.value.toString()
-        console.log("received: "+ received)
+        const received = JSON.parse(data.value.toString())
+        const key = received.key
+        const value = received.value
+        console.log("received: " + received)
 
         const resource = `locks:${received}`
         const ttl = 20000
 
-        const key = received
-        const value = received
-        
-        
         redlock.lock(resource, ttl)
             .then(async function (lock) {
-                console.log('Lock acquired!')
-                await redisSet(key, value)
-                console.log(`SET key=${key} value=${value}`)
+                console.log('Lock acquired!:D')
+                listData = JSON.parse (await redisGet(key)) || []
+                listData.push(received)
+
+                listDataString = JSON.stringify(listData)
+                
+                
+                await redisSet(key, listDataString)
+                console.log(`SET key=${key} value=${listDataString}`)
+
                 console.log('Key unlocked!')
                 return lock.unlock()
                     .catch(function (err) {
@@ -88,3 +98,21 @@ consumer
     });
 
 consumer.connect();
+
+app.get('/getValue/:key', async (req, res) => {
+    if (!req.params.key) {
+        return res.status(400).json({ error: 'Wrong input.' })
+    }
+
+    try {
+        const value = await redisGet(req.params.key)
+        console.log(`GET key=${req.params.key} value=${value}`)
+        res.json(value)
+    } catch (e) {
+        res.json(e)
+    }
+})
+
+app.listen(3000, () => {
+    console.log('Server is up on port 3000')
+})

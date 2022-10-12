@@ -7,6 +7,7 @@ metadata:
     component: redis-server
     type: single
 spec:
+  type: NodePort
   ports:
     - port: 6379
       protocol: TCP
