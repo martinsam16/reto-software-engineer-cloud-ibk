@@ -26,8 +26,9 @@ spec:
         type: single
     spec:
       containers:
-        - image: redis-server:1.0.0
+        - image: redis-server
           name: redis-server
+          imagePullPolicy: IfNotPresent
           volumeMounts:
             - mountPath: /redis-data
               name: redis-data

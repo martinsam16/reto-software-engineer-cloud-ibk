@@ -1,0 +1,1 @@
+docker build -t redlock-write:latest -f Dockerfile .

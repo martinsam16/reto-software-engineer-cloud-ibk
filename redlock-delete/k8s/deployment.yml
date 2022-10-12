@@ -2,15 +2,15 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    application: redlock-node
-    component: redlock-node
-  name: redlock-node
+    application: redlock-delete
+    component: redlock-delete
+  name: redlock-delete
 spec:
   replicas: 1
   selector:
     matchLabels:
-      application: redlock-node
-      component: redlock-node
+      application: redlock-delete
+      component: redlock-delete
   strategy:
     rollingUpdate:
       maxSurge: 2
@@ -19,18 +19,18 @@ spec:
   template:
     metadata:
       labels:
-        application: redlock-node
-        component: redlock-node
+        application: redlock-delete
+        component: redlock-delete
         redeploy: '1'
     spec:
       containers:
-        - name: redlock-node
-          image: redlock-node
+        - name: redlock-delete
+          image: redlock-delete
           imagePullPolicy: IfNotPresent
           env:
           - name: REDIS_SERVER_IP
             value: "redis-server"
           ports:
-          - name: redlock-node
+          - name: redlock-delete
             containerPort: 3000
             protocol: TCP

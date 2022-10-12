@@ -14,6 +14,7 @@ const redisClient = redis.createClient('6379', process.env.REDIS_SERVER_IP)
 redisClient.on('error', error => console.error(error))
 const redisSet = promisify(redisClient.set).bind(redisClient)
 const redisGet = promisify(redisClient.get).bind(redisClient)
+const redisDel = promisify(redisClient.del).bind(redisClient)
 
 const redlock = new Redlock(
     [redisClient],
@@ -28,6 +29,8 @@ const redlock = new Redlock(
 redlock.on('clientError', function (err) {
     console.error('A redis error has occurred:', err);
 });
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
 // Create and configure a Kafka client.
 
@@ -62,25 +65,23 @@ consumer
         consumer.commit(data);
         const received = JSON.parse(data.value.toString())
         const key = received.key
-        const value = received.value
-        console.log("received: " + received)
+        console.log("Event received!!:D")
 
-        const resource = `locks:${received}`
+        const resource = `locks:${key}`
         const ttl = 20000
 
         redlock.lock(resource, ttl)
             .then(async function (lock) {
-                console.log('Lock acquired!:D')
-                listData = JSON.parse (await redisGet(key)) || []
-                listData.push(received)
+                console.log('Locked by KafkaEventConsumer')
+                listData = JSON.parse(await redisGet(key)) || []
+                listData.push(received.value)
 
                 listDataString = JSON.stringify(listData)
-                
-                
-                await redisSet(key, listDataString)
-                console.log(`SET key=${key} value=${listDataString}`)
 
-                console.log('Key unlocked!')
+
+                await redisSet(key, listDataString)
+                await sleep(5000)
+                console.log('Unlocked by KafkaEventConsumer!')
                 return lock.unlock()
                     .catch(function (err) {
                         console.error(err);
@@ -105,9 +106,49 @@ app.get('/getValue/:key', async (req, res) => {
     }
 
     try {
-        const value = await redisGet(req.params.key)
-        console.log(`GET key=${req.params.key} value=${value}`)
-        res.json(value)
+
+        const resource = `locks:${req.params.key}`
+        const ttl = 20000
+
+        redlock.lock(resource, ttl)
+            .then(async function (lock) {
+                console.log(`Locked by /getValue/:${req.params.key} endpoint`)
+                const value = await redisGet(req.params.key)
+                res.json(JSON.parse(value))
+                console.log(`Unlocked by /getValue/:${req.params.key} endpoint!`)
+                return lock.unlock()
+                    .catch(function (err) {
+                        console.error(err);
+                    })
+            })
+    } catch (e) {
+        res.json(e)
+    }
+})
+
+app.delete('/deleteKey/:key', async (req, res) => {
+    if (!req.params.key) {
+        return res.status(400).json({ error: 'Wrong input.' })
+    }
+
+    try {
+
+
+        const resource = `locks:${req.params.key}`
+        const ttl = 20000
+
+        redlock.lock(resource, ttl)
+            .then(async function (lock) {
+                console.log(`Locked by /deleteKey/:${req.params.key} endpoint`)
+                const value = await redisDel(req.params.key)
+                res.json(value)
+                console.log(`Unlocked by /deleteKey/:${req.params.key} endpoint!`)
+                return lock.unlock()
+                    .catch(function (err) {
+                        console.error(err);
+                    })
+            })
+
     } catch (e) {
         res.json(e)
     }

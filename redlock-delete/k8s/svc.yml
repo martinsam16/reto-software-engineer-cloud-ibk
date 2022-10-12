@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redlock-delete
+  labels:
+    application: redlock-delete
+    component: redlock-delete
+spec:
+  type: NodePort
+  selector:
+    application: redlock-delete
+    component: redlock-delete
+  ports:
+  - protocol: TCP
+    port: 3001
+    targetPort: 3001
+    nodePort: 30001

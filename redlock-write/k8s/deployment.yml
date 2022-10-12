@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    application: redlock-write
+    component: redlock-write
+  name: redlock-write
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      application: redlock-write
+      component: redlock-write
+  strategy:
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        application: redlock-write
+        component: redlock-write
+        redeploy: '1'
+    spec:
+      containers:
+        - name: redlock-write
+          image: redlock-write
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: REDIS_SERVER_IP
+            value: "redis-server"
+          ports:
+          - name: redlock-write
+            containerPort: 3000
+            protocol: TCP
