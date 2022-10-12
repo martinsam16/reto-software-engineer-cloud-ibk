@@ -2,15 +2,15 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    application: node-redis-example-5
-    component: webservice-1
-  name: webservice-1
+    application: redlock-node
+    component: redlock-node
+  name: redlock-node
 spec:
   replicas: 1
   selector:
     matchLabels:
-      application: node-redis-example-5
-      component: webservice-1
+      application: redlock-node
+      component: redlock-node
   strategy:
     rollingUpdate:
       maxSurge: 2
@@ -19,17 +19,18 @@ spec:
   template:
     metadata:
       labels:
-        application: node-redis-example-5
-        component: webservice-1
+        application: redlock-node
+        component: redlock-node
         redeploy: '1'
     spec:
       containers:
-        - name: webservice-1
-          image: webservice:1.0.0
+        - name: redlock-node
+          image: redlock-node
+          imagePullPolicy: IfNotPresent
           env:
           - name: REDIS_SERVER_IP
             value: "redis-server"
           ports:
-          - name: webservice-1
+          - name: redlock-node
             containerPort: 3000
             protocol: TCP
